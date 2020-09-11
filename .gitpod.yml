@@ -3,4 +3,4 @@ image:
 
 tasks:
   - init: yarn install
-    command: yarn run start
+    # command: yarn run start
