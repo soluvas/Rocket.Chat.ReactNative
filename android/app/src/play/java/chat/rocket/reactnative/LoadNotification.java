@@ -1,4 +1,4 @@
-package chat.rocket.reactnative;
+package com.soluvas.chat.reactnative;
 
 import android.os.Bundle;
 import android.content.Context;
@@ -15,6 +15,8 @@ import com.google.gson.Gson;
 import java.io.IOException;
 
 import com.facebook.react.bridge.ReactApplicationContext;
+
+import chat.rocket.reactnative.Callback;
 
 class JsonResponse {
     Data data;

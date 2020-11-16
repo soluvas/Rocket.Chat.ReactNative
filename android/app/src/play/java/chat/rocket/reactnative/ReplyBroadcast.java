@@ -1,4 +1,4 @@
-package chat.rocket.reactnative;
+package com.soluvas.chat.reactnative;
 
 import android.app.Notification;
 import android.app.NotificationChannel;
@@ -28,6 +28,8 @@ import okhttp3.RequestBody;
 import okhttp3.Response;
 
 import com.wix.reactnativenotifications.core.NotificationIntentAdapter;
+
+import com.soluvas.chat.reactnative.Encryption;
 
 public class ReplyBroadcast extends BroadcastReceiver {
     private Context mContext;

@@ -1,4 +1,4 @@
-package chat.rocket.reactnative;
+package com.soluvas.chat.reactnative;
 
 import android.content.Context;
 import android.os.Bundle;

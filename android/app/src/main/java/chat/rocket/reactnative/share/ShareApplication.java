@@ -1,6 +1,6 @@
-package chat.rocket.reactnative.share;
+package com.soluvas.chat.reactnative.share;
 
-import chat.rocket.reactnative.BuildConfig;
+import com.soluvas.chat.reactnative.BuildConfig;
 
 import chat.rocket.SharePackage;
 

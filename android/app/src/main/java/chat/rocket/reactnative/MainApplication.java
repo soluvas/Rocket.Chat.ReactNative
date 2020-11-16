@@ -1,4 +1,4 @@
-package chat.rocket.reactnative;
+package com.soluvas.chat.reactnative;
 
 import android.app.Application;
 
@@ -19,7 +19,8 @@ import org.unimodules.adapters.react.ReactModuleRegistryProvider;
 import java.util.Arrays;
 import java.util.List;
 
-import chat.rocket.reactnative.generated.BasePackageList;
+import com.soluvas.chat.reactnative.generated.BasePackageList;
+import chat.rocket.reactnative.AdditionalModules;
 
 public class MainApplication extends Application implements ReactApplication {
 
