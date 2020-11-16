@@ -1,4 +1,4 @@
-package chat.rocket.reactnative;
+package com.soluvas.chat.reactnative;
 
 import android.app.Notification;
 import android.app.NotificationChannel;
@@ -12,6 +12,8 @@ import android.content.res.Resources;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.drawable.Icon;
+import android.media.AudioAttributes;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 
@@ -131,7 +133,7 @@ public class CustomPushNotification extends PushNotification {
 
         Integer notificationId = Integer.parseInt(notId);
         notificationColor(notification);
-        notificationChannel(notification);
+        notificationChannel(notification, ejson.type);
         notificationIcons(notification, bundle);
         notificationDismiss(notification, notificationId);
 
@@ -205,21 +207,53 @@ public class CustomPushNotification extends PushNotification {
         }
     }
 
-    private void notificationChannel(Notification.Builder notification) {
+    private void notificationChannel(Notification.Builder notification, String type) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            String CHANNEL_ID = "rocketchatrn_channel_01";
-            String CHANNEL_NAME = "All";
+            String CHANNEL_ID_ALL = "rocketchatrn_channel_01";
+            String CHANNEL_NAME_ALL = "All";
+            String CHANNEL_ID_GROUP = "rocketchatrn_channel_group";
+            String CHANNEL_NAME_GROUP = "Private Groups";
+            String CHANNEL_ID_DIRECT = "rocketchatrn_channel_direct";
+            String CHANNEL_NAME_DIRECT = "Direct Messages";
+
+            AudioAttributes att = new AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_NOTIFICATION)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                    .build();
 
             // User-visible importance level: Urgent - Makes a sound and appears as a heads-up notification
             // https://developer.android.com/training/notify-user/channels#importance
-            NotificationChannel channel = new NotificationChannel(CHANNEL_ID,
-                    CHANNEL_NAME,
+            NotificationChannel generalChannel = new NotificationChannel(CHANNEL_ID_ALL,
+                    CHANNEL_NAME_ALL,
                     NotificationManager.IMPORTANCE_HIGH);
+            Uri generalSoundUri = Uri.parse("android.resource://" + mContext.getPackageName() + "/" + R.raw.chat_message);
+            generalChannel.setSound(generalSoundUri, att);
+            NotificationChannel groupChannel = new NotificationChannel(CHANNEL_ID_GROUP,
+                    CHANNEL_NAME_GROUP,
+                    NotificationManager.IMPORTANCE_HIGH);
+            Uri groupSoundUri = Uri.parse("android.resource://" + mContext.getPackageName() + "/" + R.raw.subtle_notification_ding_01);
+            groupChannel.setSound(groupSoundUri, att);
+            NotificationChannel directChannel = new NotificationChannel(CHANNEL_ID_DIRECT,
+                    CHANNEL_NAME_DIRECT,
+                    NotificationManager.IMPORTANCE_HIGH);
+            Uri directSoundUri = Uri.parse("android.resource://" + mContext.getPackageName() + "/" + R.raw.text_message_01);
+            directChannel.setSound(directSoundUri, att);
 
             final NotificationManager notificationManager = (NotificationManager) mContext.getSystemService(Context.NOTIFICATION_SERVICE);
-            notificationManager.createNotificationChannel(channel);
+            notificationManager.createNotificationChannel(generalChannel);
+            notificationManager.createNotificationChannel(groupChannel);
+            notificationManager.createNotificationChannel(directChannel);
 
-            notification.setChannelId(CHANNEL_ID);
+            if ("p".equals(type)) {
+                // type == 'p' (private group)
+                notification.setChannelId(CHANNEL_ID_GROUP);
+            } else if ("d".equals(type)) {
+                // type == 'd' (direct message)
+                notification.setChannelId(CHANNEL_ID_DIRECT);
+            } else {
+                // type == 'c' (public channel) or anything else
+                notification.setChannelId(CHANNEL_ID_ALL);
+            }
         }
     }
 
