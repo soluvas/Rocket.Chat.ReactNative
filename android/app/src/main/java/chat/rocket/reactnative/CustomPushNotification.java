@@ -40,6 +40,10 @@ import java.util.Iterator;
 
 import static com.wix.reactnativenotifications.Defs.NOTIFICATION_RECEIVED_EVENT_NAME;
 
+/**
+ * @deprecated This class has been deleted in Rocket.Chat.ReactNative 4.12,
+ * and different channels should be re-implemented.
+ */
 public class CustomPushNotification extends PushNotification {
     public static ReactApplicationContext reactApplicationContext;
     final NotificationManager notificationManager;

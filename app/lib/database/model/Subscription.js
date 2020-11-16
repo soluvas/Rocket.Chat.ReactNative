@@ -42,6 +42,12 @@ export default class Subscription extends Model {
 
 	@field('group_mentions') groupMentions;
 
+	@json('tunread', sanitizer) tunread;
+
+	@json('tunread_user', sanitizer) tunreadUser;
+
+	@json('tunread_group', sanitizer) tunreadGroup;
+
 	@date('room_updated_at') roomUpdatedAt;
 
 	@field('ro') ro;
@@ -109,4 +115,12 @@ export default class Subscription extends Model {
 	@json('livechat_data', sanitizer) livechatData;
 
 	@json('tags', sanitizer) tags;
+
+	@field('e2e_key') E2EKey;
+
+	@field('encrypted') encrypted;
+
+	@field('e2e_key_id') e2eKeyId;
+
+	@field('avatar_etag') avatarETag;
 }

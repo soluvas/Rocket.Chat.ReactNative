@@ -1,7 +1,6 @@
 import { Database } from '@nozbe/watermelondb';
 import SQLiteAdapter from '@nozbe/watermelondb/adapters/sqlite';
 import logger from '@nozbe/watermelondb/utils/common/logger';
-import RNFetchBlob from 'rn-fetch-blob';
 
 import Subscription from './model/Subscription';
 import Room from './model/Room';
@@ -16,19 +15,21 @@ import Role from './model/Role';
 import Permission from './model/Permission';
 import SlashCommand from './model/SlashCommand';
 import User from './model/User';
-import Server from './model/Server';
+
+import LoggedUser from './model/servers/User';
+import Server from './model/servers/Server';
+import ServersHistory from './model/ServersHistory';
 
 import serversSchema from './schema/servers';
 import appSchema from './schema/app';
 
 import migrations from './model/migrations';
-
-import serversMigrations from './model/serversMigrations';
+import serversMigrations from './model/servers/migrations';
 
 import { isIOS } from '../../utils/deviceInfo';
-import appConfig from '../../../app.json';
+import appGroup from '../../utils/appGroup';
 
-const appGroupPath = isIOS ? `${ RNFetchBlob.fs.syncPathAppGroup(appConfig.appGroup) }/` : '';
+const appGroupPath = isIOS ? appGroup.path : '';
 
 if (__DEV__ && isIOS) {
 	console.log(appGroupPath);
@@ -36,7 +37,7 @@ if (__DEV__ && isIOS) {
 
 export const getDatabase = (database = '') => {
 	const path = database.replace(/(^\w+:|^)\/\//, '').replace(/\//g, '.');
-	const dbName = `${ appGroupPath }${ path }.db`;
+	const dbName = `${ appGroupPath }${ path }-experimental.db`;
 
 	const adapter = new SQLiteAdapter({
 		dbName,
@@ -58,7 +59,8 @@ export const getDatabase = (database = '') => {
 			Setting,
 			Role,
 			Permission,
-			SlashCommand
+			SlashCommand,
+			User
 		],
 		actionsEnabled: true
 	});
@@ -68,11 +70,11 @@ class DB {
 	databases = {
 		serversDB: new Database({
 			adapter: new SQLiteAdapter({
-				dbName: `${ appGroupPath }default.db`,
+				dbName: `${ appGroupPath }default-experimental.db`,
 				schema: serversSchema,
 				migrations: serversMigrations
 			}),
-			modelClasses: [Server, User],
+			modelClasses: [Server, LoggedUser, ServersHistory],
 			actionsEnabled: true
 		})
 	}
@@ -95,7 +97,7 @@ class DB {
 
 	setShareDB(database = '') {
 		const path = database.replace(/(^\w+:|^)\/\//, '').replace(/\//g, '.');
-		const dbName = `${ appGroupPath }${ path }.db`;
+		const dbName = `${ appGroupPath }${ path }-experimental.db`;
 
 		const adapter = new SQLiteAdapter({
 			dbName,
@@ -113,7 +115,9 @@ class DB {
 				Upload,
 				Permission,
 				CustomEmoji,
-				FrequentlyUsedEmoji
+				FrequentlyUsedEmoji,
+				Setting,
+				User
 			],
 			actionsEnabled: true
 		});

@@ -6,6 +6,7 @@ import Message from './Message';
 import MessageContext from './Context';
 import debounce from '../../utils/debounce';
 import { SYSTEM_MESSAGES, getMessageTranslation } from './utils';
+import { E2E_MESSAGE_TYPE, E2E_STATUS } from '../../lib/encryption/constants';
 import messagesStatus from '../../constants/messagesStatus';
 import { withTheme } from '../../theme';
 
@@ -19,7 +20,6 @@ class MessageContainer extends React.Component {
 		}),
 		rid: PropTypes.string,
 		timeFormat: PropTypes.string,
-		customThreadTimeFormat: PropTypes.string,
 		style: PropTypes.any,
 		archived: PropTypes.bool,
 		broadcast: PropTypes.bool,
@@ -35,6 +35,7 @@ class MessageContainer extends React.Component {
 		getCustomEmoji: PropTypes.func,
 		onLongPress: PropTypes.func,
 		onReactionPress: PropTypes.func,
+		onEncryptedPress: PropTypes.func,
 		onDiscussionPress: PropTypes.func,
 		onThreadPress: PropTypes.func,
 		errorActionsShow: PropTypes.func,
@@ -46,13 +47,16 @@ class MessageContainer extends React.Component {
 		navToRoomInfo: PropTypes.func,
 		callJitsi: PropTypes.func,
 		blockAction: PropTypes.func,
-		theme: PropTypes.string
+		theme: PropTypes.string,
+		getBadgeColor: PropTypes.func,
+		toggleFollowThread: PropTypes.func
 	}
 
 	static defaultProps = {
 		getCustomEmoji: () => {},
 		onLongPress: () => {},
 		onReactionPress: () => {},
+		onEncryptedPress: () => {},
 		onDiscussionPress: () => {},
 		onThreadPress: () => {},
 		errorActionsShow: () => {},
@@ -104,7 +108,7 @@ class MessageContainer extends React.Component {
 
 	onLongPress = () => {
 		const { archived, onLongPress, item } = this.props;
-		if (this.isInfo || this.hasError || archived) {
+		if (this.isInfo || this.hasError || this.isEncrypted || archived) {
 			return;
 		}
 		if (onLongPress) {
@@ -130,6 +134,13 @@ class MessageContainer extends React.Component {
 		const { onReactionLongPress, item } = this.props;
 		if (onReactionLongPress) {
 			onReactionLongPress(item);
+		}
+	}
+
+	onEncryptedPress = () => {
+		const { onEncryptedPress } = this.props;
+		if (onEncryptedPress) {
+			onEncryptedPress();
 		}
 	}
 
@@ -196,6 +207,12 @@ class MessageContainer extends React.Component {
 		return false;
 	}
 
+	get isEncrypted() {
+		const { item } = this.props;
+		const { t, e2e } = item;
+		return t === E2E_MESSAGE_TYPE && e2e !== E2E_STATUS.DONE;
+	}
+
 	get isInfo() {
 		const { item } = this.props;
 		return SYSTEM_MESSAGES.includes(item.t);
@@ -227,10 +244,10 @@ class MessageContainer extends React.Component {
 
 	render() {
 		const {
-			item, user, style, archived, baseUrl, useRealName, broadcast, fetchThreadName, customThreadTimeFormat, showAttachment, timeFormat, isReadReceiptEnabled, autoTranslateRoom, autoTranslateLanguage, navToRoomInfo, getCustomEmoji, isThreadRoom, callJitsi, blockAction, rid, theme
+			item, user, style, archived, baseUrl, useRealName, broadcast, fetchThreadName, showAttachment, timeFormat, isReadReceiptEnabled, autoTranslateRoom, autoTranslateLanguage, navToRoomInfo, getCustomEmoji, isThreadRoom, callJitsi, blockAction, rid, theme, getBadgeColor, toggleFollowThread
 		} = this.props;
 		const {
-			id, msg, ts, attachments, urls, reactions, t, avatar, emoji, u, alias, editedBy, role, drid, dcount, dlm, tmid, tcount, tlm, tmsg, mentions, channels, unread, blocks, autoTranslate: autoTranslateMessage
+			id, msg, ts, attachments, urls, reactions, t, avatar, emoji, u, alias, editedBy, role, drid, dcount, dlm, tmid, tcount, tlm, tmsg, mentions, channels, unread, blocks, autoTranslate: autoTranslateMessage, replies
 		} = item;
 
 		let message = msg;
@@ -251,8 +268,12 @@ class MessageContainer extends React.Component {
 					onErrorPress: this.onErrorPress,
 					replyBroadcast: this.replyBroadcast,
 					onReactionPress: this.onReactionPress,
+					onEncryptedPress: this.onEncryptedPress,
 					onDiscussionPress: this.onDiscussionPress,
-					onReactionLongPress: this.onReactionLongPress
+					onReactionLongPress: this.onReactionLongPress,
+					getBadgeColor,
+					toggleFollowThread,
+					replies
 				}}
 			>
 				<Message
@@ -270,7 +291,6 @@ class MessageContainer extends React.Component {
 					avatar={avatar}
 					emoji={emoji}
 					timeFormat={timeFormat}
-					customThreadTimeFormat={customThreadTimeFormat}
 					style={style}
 					archived={archived}
 					broadcast={broadcast}
@@ -295,6 +315,7 @@ class MessageContainer extends React.Component {
 					isThreadRoom={isThreadRoom}
 					isInfo={this.isInfo}
 					isTemp={this.isTemp}
+					isEncrypted={this.isEncrypted}
 					hasError={this.hasError}
 					showAttachment={showAttachment}
 					getCustomEmoji={getCustomEmoji}

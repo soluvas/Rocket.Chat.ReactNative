@@ -33,11 +33,7 @@ import { appStart as appStartAction, ROOT_BACKGROUND } from '../../actions/app';
 import debounce from '../../utils/debounce';
 import { isIOS, isTablet } from '../../utils/deviceInfo';
 import RoomsListHeaderView from './Header';
-import {
-	DrawerButton,
-	CustomHeaderButtons,
-	Item
-} from '../../containers/HeaderButton';
+import * as HeaderButton from '../../containers/HeaderButton';
 import StatusBar from '../../containers/StatusBar';
 import ActivityIndicator from '../../containers/ActivityIndicator';
 import ListHeader from './ListHeader';
@@ -62,8 +58,11 @@ import { goRoom } from '../../utils/goRoom';
 import SafeAreaView from '../../containers/SafeAreaView';
 import Header, { getHeaderTitlePosition } from '../../containers/Header';
 import { withDimensions } from '../../dimensions';
-import { showErrorAlert } from '../../utils/info';
-import { getInquiryQueueSelector } from '../../selectors/inquiry';
+import { showErrorAlert, showConfirmationAlert } from '../../utils/info';
+import { E2E_BANNER_TYPE } from '../../lib/encryption/constants';
+
+import { getInquiryQueueSelector } from '../../ee/omnichannel/selectors/inquiry';
+import { changeLivechatStatus, isOmnichannelStatusAvailable } from '../../ee/omnichannel/lib';
 
 const INITIAL_NUM_TO_RENDER = isTablet ? 20 : 12;
 const CHATS_HEADER = 'Chats';
@@ -73,10 +72,12 @@ const DISCUSSIONS_HEADER = 'Discussions';
 const CHANNELS_HEADER = 'Channels';
 const DM_HEADER = 'Direct_Messages';
 const GROUPS_HEADER = 'Private_Groups';
+const OMNICHANNEL_HEADER = 'Open_Livechats';
 const QUERY_SIZE = 20;
 
-const filterIsUnread = s => (s.unread > 0 || s.alert) && !s.hideUnreadStatus;
+const filterIsUnread = s => (s.unread > 0 || s.tunread?.length > 0 || s.alert) && !s.hideUnreadStatus;
 const filterIsFavorite = s => s.f;
+const filterIsOmnichannel = s => s.t === 'l';
 
 const shouldUpdateProps = [
 	'searchText',
@@ -94,7 +95,8 @@ const shouldUpdateProps = [
 	'isMasterDetail',
 	'refreshing',
 	'queueSize',
-	'inquiryEnabled'
+	'inquiryEnabled',
+	'encryptionBanner'
 ];
 const getItemLayout = (data, index) => ({
 	length: ROW_HEIGHT,
@@ -109,7 +111,9 @@ class RoomsListView extends React.Component {
 		user: PropTypes.shape({
 			id: PropTypes.string,
 			username: PropTypes.string,
-			token: PropTypes.string
+			token: PropTypes.string,
+			statusLivechat: PropTypes.string,
+			roles: PropTypes.object
 		}),
 		server: PropTypes.string,
 		searchText: PropTypes.string,
@@ -137,7 +141,8 @@ class RoomsListView extends React.Component {
 		width: PropTypes.number,
 		insets: PropTypes.object,
 		queueSize: PropTypes.number,
-		inquiryEnabled: PropTypes.bool
+		inquiryEnabled: PropTypes.bool,
+		encryptionBanner: PropTypes.string
 	};
 
 	constructor(props) {
@@ -333,19 +338,18 @@ class RoomsListView extends React.Component {
 	getHeader = () => {
 		const { searching } = this.state;
 		const { navigation, isMasterDetail, insets } = this.props;
-		const headerTitlePosition = getHeaderTitlePosition(insets);
+		const headerTitlePosition = getHeaderTitlePosition({ insets, numIconsRight: 3 });
 		return {
 			headerTitleAlign: 'left',
 			headerLeft: () => (searching ? (
-				<CustomHeaderButtons left>
-					<Item
-						title='cancel'
+				<HeaderButton.Container left>
+					<HeaderButton.Item
 						iconName='close'
 						onPress={this.cancelSearch}
 					/>
-				</CustomHeaderButtons>
+				</HeaderButton.Container>
 			) : (
-				<DrawerButton
+				<HeaderButton.Drawer
 					navigation={navigation}
 					testID='rooms-list-view-sidebar'
 					onPress={isMasterDetail
@@ -359,20 +363,23 @@ class RoomsListView extends React.Component {
 				right: headerTitlePosition.right
 			},
 			headerRight: () => (searching ? null : (
-				<CustomHeaderButtons>
-					<Item
-						title='new'
+				<HeaderButton.Container>
+					<HeaderButton.Item
 						iconName='create'
 						onPress={this.goToNewMessage}
 						testID='rooms-list-view-create-channel'
 					/>
-					<Item
-						title='search'
+					<HeaderButton.Item
 						iconName='search'
 						onPress={this.initSearching}
 						testID='rooms-list-view-search'
 					/>
-				</CustomHeaderButtons>
+					<HeaderButton.Item
+						iconName='directory'
+						onPress={this.goDirectory}
+						testID='rooms-list-view-directory'
+					/>
+				</HeaderButton.Container>
 			))
 		};
 	}
@@ -407,7 +414,8 @@ class RoomsListView extends React.Component {
 			sortBy,
 			showUnread,
 			showFavorites,
-			groupByType
+			groupByType,
+			user
 		} = this.props;
 
 		const db = database.active;
@@ -444,7 +452,6 @@ class RoomsListView extends React.Component {
 				.observe();
 		}
 
-
 		this.querySubscription = observable.subscribe((data) => {
 			let tempChats = [];
 			let chats = data;
@@ -454,6 +461,13 @@ class RoomsListView extends React.Component {
 			 * RoomItem handles its own re-render
 			 */
 			const chatsOrder = data.map(item => item.rid);
+
+			const isOmnichannelAgent = user?.roles?.includes('livechat-agent');
+			if (isOmnichannelAgent) {
+				const omnichannel = chats.filter(s => filterIsOmnichannel(s));
+				chats = chats.filter(s => !filterIsOmnichannel(s));
+				tempChats = this.addRoomsGroup(omnichannel, OMNICHANNEL_HEADER, tempChats);
+			}
 
 			// unread
 			if (showUnread) {
@@ -479,7 +493,7 @@ class RoomsListView extends React.Component {
 				tempChats = this.addRoomsGroup(channels, CHANNELS_HEADER, tempChats);
 				tempChats = this.addRoomsGroup(privateGroup, GROUPS_HEADER, tempChats);
 				tempChats = this.addRoomsGroup(direct, DM_HEADER, tempChats);
-			} else if (showUnread || showFavorites) {
+			} else if (showUnread || showFavorites || isOmnichannelAgent) {
 				tempChats = this.addRoomsGroup(chats, CHATS_HEADER, tempChats);
 			} else {
 				tempChats = chats;
@@ -679,7 +693,28 @@ class RoomsListView extends React.Component {
 
 	goQueue = () => {
 		logEvent(events.RL_GO_QUEUE);
-		const { navigation, isMasterDetail, queueSize } = this.props;
+		const {
+			navigation, isMasterDetail, queueSize, inquiryEnabled, user
+		} = this.props;
+
+		// if not-available, prompt to change to available
+		if (!isOmnichannelStatusAvailable(user)) {
+			showConfirmationAlert({
+				message: I18n.t('Omnichannel_enable_alert'),
+				confirmationText: I18n.t('Yes'),
+				onPress: async() => {
+					try {
+						await changeLivechatStatus();
+					} catch {
+						// Do nothing
+					}
+				}
+			});
+		}
+
+		if (!inquiryEnabled) {
+			return;
+		}
 		// prevent navigation to empty list
 		if (!queueSize) {
 			return showErrorAlert(I18n.t('Queue_is_empty'), I18n.t('Oops'));
@@ -763,6 +798,20 @@ class RoomsListView extends React.Component {
 		}
 	}
 
+	goEncryption = () => {
+		logEvent(events.RL_GO_E2E_SAVE_PASSWORD);
+		const { navigation, isMasterDetail, encryptionBanner } = this.props;
+
+		const isSavePassword = encryptionBanner === E2E_BANNER_TYPE.SAVE_PASSWORD;
+		if (isMasterDetail) {
+			const screen = isSavePassword ? 'E2ESaveYourPasswordView' : 'E2EEnterYourPasswordView';
+			navigation.navigate('ModalStackNavigator', { screen });
+		} else {
+			const screen = isSavePassword ? 'E2ESaveYourPasswordStackNavigator' : 'E2EEnterYourPasswordStackNavigator';
+			navigation.navigate(screen);
+		}
+	}
+
 	handleCommands = ({ event }) => {
 		const { navigation, server, isMasterDetail } = this.props;
 		const { input } = event;
@@ -807,22 +856,26 @@ class RoomsListView extends React.Component {
 
 	renderListHeader = () => {
 		const { searching } = this.state;
-		const { sortBy, queueSize, inquiryEnabled } = this.props;
+		const {
+			sortBy, queueSize, inquiryEnabled, encryptionBanner, user
+		} = this.props;
 		return (
 			<ListHeader
 				searching={searching}
 				sortBy={sortBy}
 				toggleSort={this.toggleSort}
-				goDirectory={this.goDirectory}
+				goEncryption={this.goEncryption}
 				goQueue={this.goQueue}
 				queueSize={queueSize}
 				inquiryEnabled={inquiryEnabled}
+				encryptionBanner={encryptionBanner}
+				user={user}
 			/>
 		);
 	};
 
 	renderHeader = () => {
-		const { isMasterDetail, theme } = this.props;
+		const { isMasterDetail } = this.props;
 
 		if (!isMasterDetail) {
 			return null;
@@ -831,7 +884,6 @@ class RoomsListView extends React.Component {
 		const options = this.getHeader();
 		return (
 			<Header
-				theme={theme}
 				{...options}
 			/>
 		);
@@ -844,12 +896,7 @@ class RoomsListView extends React.Component {
 
 		const { item: currentItem } = this.state;
 		const {
-			user: {
-				id: userId,
-				username,
-				token
-			},
-			server,
+			user: { username },
 			StoreLastMessage,
 			useRealName,
 			theme,
@@ -864,10 +911,7 @@ class RoomsListView extends React.Component {
 				theme={theme}
 				id={id}
 				type={item.t}
-				userId={userId}
 				username={username}
-				token={token}
-				baseUrl={server}
 				showLastMessage={StoreLastMessage}
 				onPress={this.onPressItem}
 				testID={`rooms-list-view-item-${ item.name }`}
@@ -947,8 +991,8 @@ class RoomsListView extends React.Component {
 		} = this.props;
 
 		return (
-			<SafeAreaView testID='rooms-list-view' theme={theme} style={{ backgroundColor: themes[theme].backgroundColor }}>
-				<StatusBar theme={theme} />
+			<SafeAreaView testID='rooms-list-view' style={{ backgroundColor: themes[theme].backgroundColor }}>
+				<StatusBar />
 				{this.renderHeader()}
 				{this.renderScroll()}
 				{showSortDropdown ? (
@@ -985,7 +1029,8 @@ const mapStateToProps = state => ({
 	StoreLastMessage: state.settings.Store_Last_Message,
 	rooms: state.room.rooms,
 	queueSize: getInquiryQueueSelector(state).length,
-	inquiryEnabled: state.inquiry.enabled
+	inquiryEnabled: state.inquiry.enabled,
+	encryptionBanner: state.encryption.banner
 });
 
 const mapDispatchToProps = dispatch => ({

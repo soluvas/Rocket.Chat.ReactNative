@@ -6,14 +6,14 @@ import prompt from 'react-native-prompt-android';
 import SHA256 from 'js-sha256';
 import ImagePicker from 'react-native-image-crop-picker';
 import RNPickerSelect from 'react-native-picker-select';
-import equal from 'deep-equal';
+import { isEqual, omit } from 'lodash';
 
 import Touch from '../../utils/touch';
 import KeyboardView from '../../presentation/KeyboardView';
 import sharedStyles from '../Styles';
 import styles from './styles';
 import scrollPersistTaps from '../../utils/scrollPersistTaps';
-import { showErrorAlert } from '../../utils/info';
+import { showErrorAlert, showConfirmationAlert } from '../../utils/info';
 import { LISTENER } from '../../containers/Toast';
 import EventEmitter from '../../utils/events';
 import RocketChat from '../../lib/rocketchat';
@@ -24,7 +24,7 @@ import Button from '../../containers/Button';
 import Avatar from '../../containers/Avatar';
 import { setUser as setUserAction } from '../../actions/login';
 import { CustomIcon } from '../../lib/Icons';
-import { DrawerButton } from '../../containers/HeaderButton';
+import * as HeaderButton from '../../containers/HeaderButton';
 import StatusBar from '../../containers/StatusBar';
 import { themes } from '../../constants/colors';
 import { withTheme } from '../../theme';
@@ -37,8 +37,11 @@ class ProfileView extends React.Component {
 			title: I18n.t('Profile')
 		};
 		if (!isMasterDetail) {
-			options.headerLeft = () => <DrawerButton navigation={navigation} />;
+			options.headerLeft = () => <HeaderButton.Drawer navigation={navigation} />;
 		}
+		options.headerRight = () => (
+			<HeaderButton.Preferences onPress={() => navigation.navigate('UserPreferencesView')} testID='preferences-view-open' />
+		);
 		return options;
 	}
 
@@ -81,16 +84,22 @@ class ProfileView extends React.Component {
 
 	UNSAFE_componentWillReceiveProps(nextProps) {
 		const { user } = this.props;
-		if (!equal(user, nextProps.user)) {
+		/*
+		 * We need to ignore status because on Android ImagePicker
+		 * changes the activity, so, the user status changes and
+		 * it's resetting the avatar right after
+		 * select some image from gallery.
+		 */
+		if (!isEqual(omit(user, ['status']), omit(nextProps.user, ['status']))) {
 			this.init(nextProps.user);
 		}
 	}
 
 	shouldComponentUpdate(nextProps, nextState) {
-		if (!equal(nextState, this.state)) {
+		if (!isEqual(nextState, this.state)) {
 			return true;
 		}
-		if (!equal(nextProps, this.props)) {
+		if (!isEqual(nextProps, this.props)) {
 			return true;
 		}
 		return false;
@@ -279,6 +288,7 @@ class ProfileView extends React.Component {
 		const options = {
 			cropping: true,
 			compressImageQuality: 0.8,
+			freeStyleCropEnabled: true,
 			cropperAvoidEmptySpaceAroundImage: false,
 			cropperChooseText: I18n.t('Choose'),
 			cropperCancelText: I18n.t('Cancel'),
@@ -321,7 +331,6 @@ class ProfileView extends React.Component {
 		const { avatarUrl, avatarSuggestions } = this.state;
 		const {
 			user,
-			baseUrl,
 			theme,
 			Accounts_AllowUserAvatarChange
 		} = this.props;
@@ -329,7 +338,7 @@ class ProfileView extends React.Component {
 		return (
 			<View style={styles.avatarButtons}>
 				{this.renderAvatarButton({
-					child: <Avatar text={`@${ user.username }`} size={50} baseUrl={baseUrl} userId={user.id} token={user.token} />,
+					child: <Avatar text={`@${ user.username }`} size={50} />,
 					onPress: () => this.resetAvatar(),
 					disabled: !Accounts_AllowUserAvatarChange,
 					key: 'profile-view-reset-avatar'
@@ -351,7 +360,7 @@ class ProfileView extends React.Component {
 					return this.renderAvatarButton({
 						disabled: !Accounts_AllowUserAvatarChange,
 						key: `profile-view-avatar-${ service }`,
-						child: <Avatar avatar={url} size={50} baseUrl={baseUrl} userId={user.id} token={user.token} />,
+						child: <Avatar avatar={url} size={50} />,
 						onPress: () => this.setAvatar({
 							url, data: blob, service, contentType
 						})
@@ -423,12 +432,28 @@ class ProfileView extends React.Component {
 		}
 	}
 
+	logoutOtherLocations = () => {
+		logEvent(events.PROFILE_LOGOUT_OTHER_LOCATIONS);
+		showConfirmationAlert({
+			message: I18n.t('You_will_be_logged_out_from_other_locations'),
+			callToAction: I18n.t('Logout'),
+			onPress: async() => {
+				try {
+					await RocketChat.logoutOtherLocations();
+					EventEmitter.emit(LISTENER, { message: I18n.t('Logged_out_of_other_clients_successfully') });
+				} catch {
+					logEvent(events.PROFILE_LOGOUT_OTHER_LOCATIONS_F);
+					EventEmitter.emit(LISTENER, { message: I18n.t('Logout_failed') });
+				}
+			}
+		});
+	}
+
 	render() {
 		const {
 			name, username, email, newPassword, avatarUrl, customFields, avatar, saving
 		} = this.state;
 		const {
-			baseUrl,
 			user,
 			theme,
 			Accounts_AllowEmailChange,
@@ -445,8 +470,8 @@ class ProfileView extends React.Component {
 				contentContainerStyle={sharedStyles.container}
 				keyboardVerticalOffset={128}
 			>
-				<StatusBar theme={theme} />
-				<SafeAreaView testID='profile-view' theme={theme}>
+				<StatusBar />
+				<SafeAreaView testID='profile-view'>
 					<ScrollView
 						contentContainerStyle={sharedStyles.containerScrollView}
 						testID='profile-view-list'
@@ -454,12 +479,10 @@ class ProfileView extends React.Component {
 					>
 						<View style={styles.avatarContainer} testID='profile-view-avatar'>
 							<Avatar
-								text={username}
-								avatar={avatar && avatar.url}
+								text={user.username}
+								avatar={avatar?.url}
+								isStatic={avatar?.url}
 								size={100}
-								baseUrl={baseUrl}
-								userId={user.id}
-								token={user.token}
 							/>
 						</View>
 						<RCTextInput
@@ -547,6 +570,14 @@ class ProfileView extends React.Component {
 							disabled={!this.formIsChanged()}
 							testID='profile-view-submit'
 							loading={saving}
+							theme={theme}
+						/>
+						<Button
+							title={I18n.t('Logout_from_other_logged_in_locations')}
+							type='secondary'
+							backgroundColor={themes[theme].chatComponentBackground}
+							onPress={this.logoutOtherLocations}
+							testID='profile-view-logout-other-locations'
 							theme={theme}
 						/>
 					</ScrollView>

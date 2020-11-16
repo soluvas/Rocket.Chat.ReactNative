@@ -17,7 +17,7 @@ import { ImageViewer } from '../presentation/ImageViewer';
 import { themes } from '../constants/colors';
 import { formatAttachmentUrl } from '../lib/utils';
 import RCActivityIndicator from '../containers/ActivityIndicator';
-import { SaveButton, CloseModalButton } from '../containers/HeaderButton';
+import * as HeaderButton from '../containers/HeaderButton';
 import { isAndroid } from '../utils/deviceInfo';
 import { getUserSelector } from '../selectors/login';
 import { withDimensions } from '../dimensions';
@@ -42,7 +42,8 @@ class AttachmentView extends React.Component {
 		user: PropTypes.shape({
 			id: PropTypes.string,
 			token: PropTypes.string
-		})
+		}),
+		Allow_Save_Media_to_Gallery: PropTypes.bool
 	}
 
 	constructor(props) {
@@ -68,7 +69,9 @@ class AttachmentView extends React.Component {
 	}
 
 	setHeader = () => {
-		const { route, navigation, theme } = this.props;
+		const {
+			route, navigation, theme, Allow_Save_Media_to_Gallery
+		} = this.props;
 		const attachment = route.params?.attachment;
 		let { title } = attachment;
 		try {
@@ -78,11 +81,15 @@ class AttachmentView extends React.Component {
 		}
 		const options = {
 			title,
-			headerLeft: () => <CloseModalButton testID='close-attachment-view' navigation={navigation} buttonStyle={{ color: themes[theme].previewTintColor }} />,
-			headerRight: () => <SaveButton testID='save-image' onPress={this.handleSave} buttonStyle={{ color: themes[theme].previewTintColor }} />,
+			headerLeft: () => <HeaderButton.CloseModal testID='close-attachment-view' navigation={navigation} buttonStyle={{ color: themes[theme].previewTintColor }} />,
+			headerRight: () => (
+				Allow_Save_Media_to_Gallery
+					? <HeaderButton.Download testID='save-image' onPress={this.handleSave} buttonStyle={{ color: themes[theme].previewTintColor }} />
+					: null
+			),
 			headerBackground: () => <View style={{ flex: 1, backgroundColor: themes[theme].previewBackground }} />,
 			headerTintColor: themes[theme].previewTintColor,
-			headerTitleStyle: { color: themes[theme].previewTintColor }
+			headerTitleStyle: { color: themes[theme].previewTintColor, marginHorizontal: 10 }
 		};
 		navigation.setOptions(options);
 	}
@@ -180,7 +187,8 @@ class AttachmentView extends React.Component {
 
 const mapStateToProps = state => ({
 	baseUrl: state.server.server,
-	user: getUserSelector(state)
+	user: getUserSelector(state),
+	Allow_Save_Media_to_Gallery: state.settings.Allow_Save_Media_to_Gallery ?? true
 });
 
 export default connect(mapStateToProps)(withTheme(withDimensions(withSafeAreaInsets(AttachmentView))));

@@ -9,7 +9,7 @@ import equal from 'deep-equal';
 import sharedStyles from './Styles';
 import Button from '../containers/Button';
 import I18n from '../i18n';
-import { LegalButton } from '../containers/HeaderButton';
+import * as HeaderButton from '../containers/HeaderButton';
 import { themes } from '../constants/colors';
 import { withTheme } from '../theme';
 import FormContainer, { FormContainerInner } from '../containers/FormContainer';
@@ -51,11 +51,12 @@ const styles = StyleSheet.create({
 class LoginView extends React.Component {
 	static navigationOptions = ({ route, navigation }) => ({
 		title: route.params?.title ?? 'Rocket.Chat',
-		headerRight: () => <LegalButton testID='login-view-more' navigation={navigation} />
+		headerRight: () => <HeaderButton.Legal testID='login-view-more' navigation={navigation} />
 	})
 
 	static propTypes = {
 		navigation: PropTypes.object,
+		route: PropTypes.object,
 		Site_Name: PropTypes.string,
 		Accounts_RegistrationForm: PropTypes.string,
 		Accounts_RegistrationForm_LinkReplacementText: PropTypes.string,
@@ -74,7 +75,7 @@ class LoginView extends React.Component {
 	constructor(props) {
 		super(props);
 		this.state = {
-			user: '',
+			user: props.route.params?.username ?? '',
 			password: ''
 		};
 	}
@@ -123,6 +124,7 @@ class LoginView extends React.Component {
 	}
 
 	renderUserForm = () => {
+		const { user } = this.state;
 		const {
 			Accounts_EmailOrUsernamePlaceholder, Accounts_PasswordPlaceholder, Accounts_PasswordReset, Accounts_RegistrationForm_LinkReplacementText, isFetching, theme, Accounts_ShowFormLogin
 		} = this.props;
@@ -146,6 +148,7 @@ class LoginView extends React.Component {
 					textContentType='username'
 					autoCompleteType='username'
 					theme={theme}
+					value={user}
 				/>
 				<TextInput
 					label='Password'

@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { connect } from 'react-redux';
 import { Q } from '@nozbe/watermelondb';
+import isEqual from 'react-fast-compare';
 
 import Avatar from '../../containers/Avatar';
 import Status from '../../containers/Status/Status';
@@ -19,6 +20,7 @@ import database from '../../lib/database';
 import { withTheme } from '../../theme';
 import { getUserSelector } from '../../selectors/login';
 import SafeAreaView from '../../containers/SafeAreaView';
+import Navigation from '../../lib/Navigation';
 
 const Separator = React.memo(({ theme }) => <View style={[styles.separator, { borderColor: themes[theme].separatorColor }]} />);
 Separator.propTypes = {
@@ -89,19 +91,8 @@ class Sidebar extends Component {
 		if (nextProps.theme !== theme) {
 			return true;
 		}
-		if (nextProps.user && user) {
-			if (nextProps.user.language !== user.language) {
-				return true;
-			}
-			if (nextProps.user.status !== user.status) {
-				return true;
-			}
-			if (nextProps.user.username !== user.username) {
-				return true;
-			}
-			if (nextProps.user.statusText !== user.statusText) {
-				return true;
-			}
+		if (!isEqual(nextProps.user, user)) {
+			return true;
 		}
 		if (nextProps.isMasterDetail !== isMasterDetail) {
 			return true;
@@ -135,8 +126,7 @@ class Sidebar extends Component {
 
 	sidebarNavigate = (route) => {
 		logEvent(events[`SIDEBAR_GO_${ route.replace('StackNavigator', '').replace('View', '').toUpperCase() }`]);
-		const { navigation } = this.props;
-		navigation.navigate(route);
+		Navigation.navigate(route);
 	}
 
 	get currentItemKey() {
@@ -225,7 +215,7 @@ class Sidebar extends Component {
 			return null;
 		}
 		return (
-			<SafeAreaView testID='sidebar-view' style={{ backgroundColor: themes[theme].focusedBackground }} vertical={isMasterDetail} theme={theme}>
+			<SafeAreaView testID='sidebar-view' style={{ backgroundColor: themes[theme].focusedBackground }} vertical={isMasterDetail}>
 				<ScrollView
 					style={[
 						styles.container,
@@ -241,11 +231,8 @@ class Sidebar extends Component {
 						<View style={styles.header} theme={theme}>
 							<Avatar
 								text={user.username}
-								size={30}
 								style={styles.avatar}
-								baseUrl={baseUrl}
-								userId={user.id}
-								token={user.token}
+								size={30}
 							/>
 							<View style={styles.headerTextContainer}>
 								<View style={styles.headerUsername}>

@@ -1,7 +1,7 @@
 import React, { Component } from 'react';
 import PropTypes from 'prop-types';
 import {
-	View, Alert, Keyboard, NativeModules
+	View, Alert, Keyboard, NativeModules, Text
 } from 'react-native';
 import { connect } from 'react-redux';
 import { KeyboardAccessoryView } from 'react-native-keyboard-input';
@@ -9,6 +9,7 @@ import ImagePicker from 'react-native-image-crop-picker';
 import equal from 'deep-equal';
 import DocumentPicker from 'react-native-document-picker';
 import { Q } from '@nozbe/watermelondb';
+import { TouchableWithoutFeedback } from 'react-native-gesture-handler';
 
 import { generateTriggerId } from '../../lib/methods/actions';
 import TextInput from '../../presentation/TextInput';
@@ -46,11 +47,14 @@ import CommandsPreview from './CommandsPreview';
 import { getUserSelector } from '../../selectors/login';
 import Navigation from '../../lib/Navigation';
 import { withActionSheet } from '../ActionSheet';
+import { sanitizeLikeString } from '../../lib/database/utils';
+import { CustomIcon } from '../../lib/Icons';
 
 const imagePickerConfig = {
 	cropping: true,
 	compressImageQuality: 0.8,
-	avoidEmptySpaceAroundImage: false
+	avoidEmptySpaceAroundImage: false,
+	freeStyleCropEnabled: true
 };
 
 const libraryPickerConfig = {
@@ -119,7 +123,8 @@ class MessageBox extends Component {
 			trackingType: '',
 			commandPreview: [],
 			showCommandPreview: false,
-			command: {}
+			command: {},
+			tshow: false
 		};
 		this.text = '';
 		this.selection = { start: 0, end: 0 };
@@ -129,7 +134,7 @@ class MessageBox extends Component {
 		this.options = [
 			{
 				title: I18n.t('Take_a_photo'),
-				icon: 'image',
+				icon: 'camera-photo',
 				onPress: this.takePhoto
 			},
 			{
@@ -139,7 +144,7 @@ class MessageBox extends Component {
 			},
 			{
 				title: I18n.t('Choose_from_library'),
-				icon: 'share',
+				icon: 'image',
 				onPress: this.chooseFromLibrary
 			},
 			{
@@ -252,7 +257,7 @@ class MessageBox extends Component {
 
 	shouldComponentUpdate(nextProps, nextState) {
 		const {
-			showEmojiKeyboard, showSend, recording, mentions, commandPreview
+			showEmojiKeyboard, showSend, recording, mentions, commandPreview, tshow
 		} = this.state;
 
 		const {
@@ -280,6 +285,9 @@ class MessageBox extends Component {
 			return true;
 		}
 		if (nextState.recording !== recording) {
+			return true;
+		}
+		if (nextState.tshow !== tshow) {
 			return true;
 		}
 		if (!equal(nextState.mentions, mentions)) {
@@ -491,8 +499,9 @@ class MessageBox extends Component {
 		const db = database.active;
 		if (keyword) {
 			const customEmojisCollection = db.collections.get('custom_emojis');
+			const likeString = sanitizeLikeString(keyword);
 			let customEmojis = await customEmojisCollection.query(
-				Q.where('name', Q.like(`${ Q.sanitizeLikeString(keyword) }%`))
+				Q.where('name', Q.like(`${ likeString }%`))
 			).fetch();
 			customEmojis = customEmojis.slice(0, MENTIONS_COUNT_TO_DISPLAY);
 			const filteredEmojis = emojis.filter(emoji => emoji.indexOf(keyword) !== -1).slice(0, MENTIONS_COUNT_TO_DISPLAY);
@@ -504,8 +513,9 @@ class MessageBox extends Component {
 	getSlashCommands = debounce(async(keyword) => {
 		const db = database.active;
 		const commandsCollection = db.collections.get('slash_commands');
+		const likeString = sanitizeLikeString(keyword);
 		const commands = await commandsCollection.query(
-			Q.where('id', Q.like(`${ Q.sanitizeLikeString(keyword) }%`))
+			Q.where('id', Q.like(`${ likeString }%`))
 		).fetch();
 		this.setState({ mentions: commands || [] });
 	}, 300)
@@ -572,6 +582,7 @@ class MessageBox extends Component {
 	clearInput = () => {
 		this.setInput('');
 		this.setShowSend(false);
+		this.setState({ tshow: false });
 	}
 
 	canUploadFile = (file) => {
@@ -705,6 +716,7 @@ class MessageBox extends Component {
 	}
 
 	submit = async() => {
+		const { tshow } = this.state;
 		const {
 			onSubmit, rid: roomId, tmid, showSend, sharing
 		} = this.props;
@@ -734,8 +746,9 @@ class MessageBox extends Component {
 			const db = database.active;
 			const commandsCollection = db.collections.get('slash_commands');
 			const command = message.replace(/ .*/, '').slice(1);
+			const likeString = sanitizeLikeString(command);
 			const slashCommand = await commandsCollection.query(
-				Q.where('id', Q.like(`${ Q.sanitizeLikeString(command) }%`))
+				Q.where('id', Q.like(`${ likeString }%`))
 			).fetch();
 			if (slashCommand.length > 0) {
 				logEvent(events.COMMAND_RUN);
@@ -767,7 +780,7 @@ class MessageBox extends Component {
 
 			// Thread
 			if (threadsEnabled && replyWithMention) {
-				onSubmit(message, replyingMessage.id);
+				onSubmit(message, replyingMessage.id, tshow);
 
 			// Legacy reply or quote (quote is a reply without mention)
 			} else {
@@ -787,7 +800,7 @@ class MessageBox extends Component {
 
 		// Normal message
 		} else {
-			onSubmit(message);
+			onSubmit(message, undefined, tshow);
 		}
 	}
 
@@ -837,6 +850,27 @@ class MessageBox extends Component {
 		} else if (handleCommandShowUpload(event)) {
 			this.showMessageBoxActions();
 		}
+	}
+
+	onPressSendToChannel = () => this.setState(({ tshow }) => ({ tshow: !tshow }))
+
+	renderSendToChannel = () => {
+		const { tshow } = this.state;
+		const { theme, tmid, replyWithMention } = this.props;
+
+		if (!tmid && !replyWithMention) {
+			return null;
+		}
+		return (
+			<TouchableWithoutFeedback
+				style={[styles.sendToChannelButton, { backgroundColor: themes[theme].messageboxBackground }]}
+				onPress={this.onPressSendToChannel}
+				testID='messagebox-send-to-channel'
+			>
+				<CustomIcon name={tshow ? 'checkbox-checked' : 'checkbox-unchecked'} size={24} color={themes[theme].auxiliaryText} />
+				<Text style={[styles.sendToChannelText, { color: themes[theme].auxiliaryText }]}>{I18n.t('Messagebox_Send_to_channel')}</Text>
+			</TouchableWithoutFeedback>
+		);
 	}
 
 	renderContent = () => {
@@ -898,6 +932,7 @@ class MessageBox extends Component {
 					keyboardType='twitter'
 					blurOnSubmit={false}
 					placeholder={I18n.t('New_Message')}
+					placeholderTextColor={themes[theme].auxiliaryTintColor}
 					onChangeText={this.onChangeText}
 					onSelectionChange={this.onSelectionChange}
 					underlineColorAndroid='transparent'
@@ -933,6 +968,7 @@ class MessageBox extends Component {
 						{textInputAndButtons}
 						{recordAudio}
 					</View>
+					{this.renderSendToChannel()}
 				</View>
 				{children}
 			</>

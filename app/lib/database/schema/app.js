@@ -1,7 +1,7 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb';
 
 export default appSchema({
-	version: 9,
+	version: 11,
 	tables: [
 		tableSchema({
 			name: 'subscriptions',
@@ -20,6 +20,9 @@ export default appSchema({
 				{ name: 'unread', type: 'number' },
 				{ name: 'user_mentions', type: 'number' },
 				{ name: 'group_mentions', type: 'number' },
+				{ name: 'tunread', type: 'string', isOptional: true },
+				{ name: 'tunread_user', type: 'string', isOptional: true },
+				{ name: 'tunread_group', type: 'string', isOptional: true },
 				{ name: 'room_updated_at', type: 'number' },
 				{ name: 'ro', type: 'boolean' },
 				{ name: 'last_open', type: 'number', isOptional: true },
@@ -49,7 +52,11 @@ export default appSchema({
 				{ name: 'department_id', type: 'string', isOptional: true },
 				{ name: 'served_by', type: 'string', isOptional: true },
 				{ name: 'livechat_data', type: 'string', isOptional: true },
-				{ name: 'tags', type: 'string', isOptional: true }
+				{ name: 'tags', type: 'string', isOptional: true },
+				{ name: 'e2e_key', type: 'string', isOptional: true },
+				{ name: 'encrypted', type: 'boolean', isOptional: true },
+				{ name: 'e2e_key_id', type: 'string', isOptional: true },
+				{ name: 'avatar_etag', type: 'string', isOptional: true }
 			]
 		}),
 		tableSchema({
@@ -63,7 +70,9 @@ export default appSchema({
 				{ name: 'department_id', type: 'string', isOptional: true },
 				{ name: 'served_by', type: 'string', isOptional: true },
 				{ name: 'livechat_data', type: 'string', isOptional: true },
-				{ name: 'tags', type: 'string', isOptional: true }
+				{ name: 'tags', type: 'string', isOptional: true },
+				{ name: 'e2e_key_id', type: 'string', isOptional: true },
+				{ name: 'avatar_etag', type: 'string', isOptional: true }
 			]
 		}),
 		tableSchema({
@@ -101,7 +110,9 @@ export default appSchema({
 				{ name: 'auto_translate', type: 'boolean', isOptional: true },
 				{ name: 'translations', type: 'string', isOptional: true },
 				{ name: 'tmsg', type: 'string', isOptional: true },
-				{ name: 'blocks', type: 'string', isOptional: true }
+				{ name: 'blocks', type: 'string', isOptional: true },
+				{ name: 'e2e', type: 'string', isOptional: true },
+				{ name: 'tshow', type: 'boolean', isOptional: true }
 			]
 		}),
 		tableSchema({
@@ -137,7 +148,8 @@ export default appSchema({
 				{ name: 'channels', type: 'string', isOptional: true },
 				{ name: 'unread', type: 'boolean', isOptional: true },
 				{ name: 'auto_translate', type: 'boolean', isOptional: true },
-				{ name: 'translations', type: 'string', isOptional: true }
+				{ name: 'translations', type: 'string', isOptional: true },
+				{ name: 'e2e', type: 'string', isOptional: true }
 			]
 		}),
 		tableSchema({
@@ -173,7 +185,8 @@ export default appSchema({
 				{ name: 'channels', type: 'string', isOptional: true },
 				{ name: 'unread', type: 'boolean', isOptional: true },
 				{ name: 'auto_translate', type: 'boolean', isOptional: true },
-				{ name: 'translations', type: 'string', isOptional: true }
+				{ name: 'translations', type: 'string', isOptional: true },
+				{ name: 'e2e', type: 'string', isOptional: true }
 			]
 		}),
 		tableSchema({
@@ -239,6 +252,15 @@ export default appSchema({
 				{ name: 'client_only', type: 'boolean', isOptional: true },
 				{ name: 'provides_preview', type: 'boolean', isOptional: true },
 				{ name: 'app_id', type: 'string', isOptional: true }
+			]
+		}),
+		tableSchema({
+			name: 'users',
+			columns: [
+				{ name: '_id', type: 'string', isIndexed: true },
+				{ name: 'name', type: 'string', isOptional: true },
+				{ name: 'username', type: 'string', isIndexed: true },
+				{ name: 'avatar_etag', type: 'string', isOptional: true }
 			]
 		})
 	]

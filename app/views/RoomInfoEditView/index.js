@@ -6,7 +6,9 @@ import {
 import { connect } from 'react-redux';
 import equal from 'deep-equal';
 import { BLOCK_CONTEXT } from '@rocket.chat/ui-kit';
+import ImagePicker from 'react-native-image-crop-picker';
 import isEqual from 'lodash/isEqual';
+import isEmpty from 'lodash/isEmpty';
 import semver from 'semver';
 
 import database from '../../lib/database';
@@ -31,6 +33,8 @@ import { withTheme } from '../../theme';
 import { MultiSelect } from '../../containers/UIKit/MultiSelect';
 import { MessageTypeValues } from '../../utils/messageTypes';
 import SafeAreaView from '../../containers/SafeAreaView';
+import Avatar from '../../containers/Avatar';
+import { CustomIcon } from '../../lib/Icons';
 
 const PERMISSION_SET_READONLY = 'set-readonly';
 const PERMISSION_SET_REACT_WHEN_READONLY = 'set-react-when-readonly';
@@ -56,6 +60,7 @@ class RoomInfoEditView extends React.Component {
 		route: PropTypes.object,
 		deleteRoom: PropTypes.func,
 		serverVersion: PropTypes.string,
+		e2eEnabled: PropTypes.bool,
 		theme: PropTypes.string
 	};
 
@@ -63,6 +68,7 @@ class RoomInfoEditView extends React.Component {
 		super(props);
 		this.state = {
 			room: {},
+			avatar: {},
 			permissions: {},
 			name: '',
 			description: '',
@@ -76,7 +82,8 @@ class RoomInfoEditView extends React.Component {
 			reactWhenReadOnly: false,
 			archived: false,
 			systemMessages: [],
-			enableSysMes: false
+			enableSysMes: false,
+			encrypted: false
 		};
 		this.loadRoom();
 	}
@@ -123,7 +130,7 @@ class RoomInfoEditView extends React.Component {
 
 	init = (room) => {
 		const {
-			description, topic, announcement, t, ro, reactWhenReadOnly, joinCodeRequired, sysMes
+			description, topic, announcement, t, ro, reactWhenReadOnly, joinCodeRequired, sysMes, encrypted
 		} = room;
 		// fake password just to user knows about it
 		this.randomValue = random(15);
@@ -134,12 +141,14 @@ class RoomInfoEditView extends React.Component {
 			topic,
 			announcement,
 			t: t === 'p',
+			avatar: {},
 			ro,
 			reactWhenReadOnly,
 			joinCode: joinCodeRequired ? this.randomValue : '',
 			archived: room.archived,
 			systemMessages: sysMes,
-			enableSysMes: sysMes && sysMes.length > 0
+			enableSysMes: sysMes && sysMes.length > 0,
+			encrypted
 		});
 	}
 
@@ -157,7 +166,7 @@ class RoomInfoEditView extends React.Component {
 
 	formIsChanged = () => {
 		const {
-			room, name, description, topic, announcement, t, ro, reactWhenReadOnly, joinCode, systemMessages, enableSysMes
+			room, name, description, topic, announcement, t, ro, reactWhenReadOnly, joinCode, systemMessages, enableSysMes, encrypted, avatar
 		} = this.state;
 		const { joinCodeRequired } = room;
 		return !(room.name === name
@@ -170,6 +179,8 @@ class RoomInfoEditView extends React.Component {
 			&& room.reactWhenReadOnly === reactWhenReadOnly
 			&& isEqual(room.sysMes, systemMessages)
 			&& enableSysMes === (room.sysMes && room.sysMes.length > 0)
+			&& room.encrypted === encrypted
+			&& isEmpty(avatar)
 		);
 	}
 
@@ -177,7 +188,7 @@ class RoomInfoEditView extends React.Component {
 		logEvent(events.RI_EDIT_SAVE);
 		Keyboard.dismiss();
 		const {
-			room, name, description, topic, announcement, t, ro, reactWhenReadOnly, joinCode, systemMessages
+			room, name, description, topic, announcement, t, ro, reactWhenReadOnly, joinCode, systemMessages, encrypted, avatar
 		} = this.state;
 
 		this.setState({ saving: true });
@@ -196,6 +207,10 @@ class RoomInfoEditView extends React.Component {
 		// Name
 		if (room.name !== name) {
 			params.roomName = name;
+		}
+		// Avatar
+		if (!isEmpty(avatar)) {
+			params.roomAvatar = avatar.data;
 		}
 		// Description
 		if (room.description !== description) {
@@ -229,6 +244,11 @@ class RoomInfoEditView extends React.Component {
 		// Join Code
 		if (this.randomValue !== joinCode) {
 			params.joinCode = joinCode;
+		}
+
+		// Encrypted
+		if (room.encrypted !== encrypted) {
+			params.encrypted = encrypted;
 		}
 
 		try {
@@ -338,9 +358,31 @@ class RoomInfoEditView extends React.Component {
 		);
 	}
 
+	changeAvatar = async() => {
+		const options = {
+			cropping: true,
+			compressImageQuality: 0.8,
+			cropperAvoidEmptySpaceAroundImage: false,
+			cropperChooseText: I18n.t('Choose'),
+			cropperCancelText: I18n.t('Cancel'),
+			includeBase64: true
+		};
+
+		try {
+			const response = await ImagePicker.openPicker(options);
+			this.setState({ avatar: { url: response.path, data: `data:image/jpeg;base64,${ response.data }`, service: 'upload' } });
+		} catch (e) {
+			console.log(e);
+		}
+	}
+
+	resetAvatar = () => {
+		this.setState({ avatar: { data: null } });
+	}
+
 	toggleRoomType = (value) => {
 		logEvent(events.RI_EDIT_TOGGLE_ROOM_TYPE);
-		this.setState({ t: value });
+		this.setState(({ encrypted }) => ({ t: value, encrypted: value && encrypted }));
 	}
 
 	toggleReadOnly = (value) => {
@@ -358,11 +400,21 @@ class RoomInfoEditView extends React.Component {
 		this.setState(({ systemMessages }) => ({ enableSysMes: value, systemMessages: value ? systemMessages : [] }));
 	}
 
+	toggleEncrypted = (value) => {
+		logEvent(events.RI_EDIT_TOGGLE_ENCRYPTED);
+		this.setState({ encrypted: value });
+	}
+
+	isServerVersionLowerThan = (version) => {
+		const { serverVersion } = this.props;
+		return serverVersion && semver.lt(semver.coerce(serverVersion), version);
+	}
+
 	render() {
 		const {
-			name, nameError, description, topic, announcement, t, ro, reactWhenReadOnly, room, joinCode, saving, permissions, archived, enableSysMes
+			name, nameError, description, topic, announcement, t, ro, reactWhenReadOnly, room, joinCode, saving, permissions, archived, enableSysMes, encrypted, avatar
 		} = this.state;
-		const { serverVersion, theme } = this.props;
+		const { serverVersion, e2eEnabled, theme } = this.props;
 		const { dangerColor } = themes[theme];
 
 		return (
@@ -371,10 +423,9 @@ class RoomInfoEditView extends React.Component {
 				contentContainerStyle={sharedStyles.container}
 				keyboardVerticalOffset={128}
 			>
-				<StatusBar theme={theme} />
+				<StatusBar />
 				<SafeAreaView
 					testID='room-info-edit-view'
-					theme={theme}
 					style={{ backgroundColor: themes[theme].backgroundColor }}
 				>
 					<ScrollView
@@ -382,6 +433,29 @@ class RoomInfoEditView extends React.Component {
 						testID='room-info-edit-view-list'
 						{...scrollPersistTaps}
 					>
+						<TouchableOpacity
+							style={styles.avatarContainer}
+							onPress={this.changeAvatar}
+							disabled={this.isServerVersionLowerThan('3.6.0')}
+						>
+							<Avatar
+								type={room.t}
+								text={room.name}
+								avatar={avatar?.url}
+								isStatic={avatar?.url}
+								rid={isEmpty(avatar) && room.rid}
+								size={100}
+							>
+								{this.isServerVersionLowerThan('3.6.0')
+									? null
+									: (
+										<TouchableOpacity style={[styles.resetButton, { backgroundColor: themes[theme].dangerColor }]} onPress={this.resetAvatar}>
+											<CustomIcon name='delete' color={themes[theme].backgroundColor} size={24} />
+										</TouchableOpacity>
+									)
+								}
+							</Avatar>
+						</TouchableOpacity>
 						<RCTextInput
 							inputRef={(e) => { this.name = e; }}
 							label={I18n.t('Name')}
@@ -487,6 +561,19 @@ class RoomInfoEditView extends React.Component {
 								{this.renderSystemMessages()}
 							</SwitchContainer>
 						) : null}
+						{e2eEnabled ? (
+							<SwitchContainer
+								value={encrypted}
+								disabled={!t}
+								leftLabelPrimary={I18n.t('Encrypted')}
+								leftLabelSecondary={I18n.t('End_to_end_encrypted_room')}
+								theme={theme}
+								testID='room-info-edit-switch-encrypted'
+								onValueChange={this.toggleEncrypted}
+								labelContainerStyle={styles.hideSystemMessages}
+								leftLabelStyle={styles.systemMessagesLabel}
+							/>
+						) : null}
 						<TouchableOpacity
 							style={[
 								styles.buttonContainer,
@@ -577,7 +664,8 @@ class RoomInfoEditView extends React.Component {
 }
 
 const mapStateToProps = state => ({
-	serverVersion: state.server.version
+	serverVersion: state.share.server.version || state.server.version,
+	e2eEnabled: state.settings.E2E_Enable || false
 });
 
 const mapDispatchToProps = dispatch => ({

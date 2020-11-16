@@ -15,7 +15,7 @@ import { isIOS, isAndroid } from '../../utils/deviceInfo';
 import I18n from '../../i18n';
 import DirectoryItem, { ROW_HEIGHT } from '../../presentation/DirectoryItem';
 import ServerItem from '../../presentation/ServerItem';
-import { CancelModalButton, CustomHeaderButtons, Item } from '../../containers/HeaderButton';
+import * as HeaderButton from '../../containers/HeaderButton';
 import ShareListHeader from './Header';
 import ActivityIndicator from '../../containers/ActivityIndicator';
 
@@ -26,6 +26,7 @@ import { animateNextTransition } from '../../utils/layoutAnimation';
 import { withTheme } from '../../theme';
 import SafeAreaView from '../../containers/SafeAreaView';
 import RocketChat from '../../lib/rocketchat';
+import { sanitizeLikeString } from '../../lib/database/utils';
 
 const permission = {
 	title: I18n.t('Read_External_Permission'),
@@ -107,8 +108,11 @@ class ShareListView extends React.Component {
 			return true;
 		}
 
-		const { server, theme } = this.props;
+		const { server, theme, userId } = this.props;
 		if (server !== nextProps.server) {
+			return true;
+		}
+		if (userId !== nextProps.userId) {
 			return true;
 		}
 		if (theme !== nextProps.theme) {
@@ -153,12 +157,12 @@ class ShareListView extends React.Component {
 		navigation.setOptions({
 			headerLeft: () => (searching
 				? (
-					<CustomHeaderButtons left>
-						<Item title='cancel' iconName='close' onPress={this.cancelSearch} />
-					</CustomHeaderButtons>
+					<HeaderButton.Container left>
+						<HeaderButton.Item title='cancel' iconName='close' onPress={this.cancelSearch} />
+					</HeaderButton.Container>
 				)
 				: (
-					<CancelModalButton
+					<HeaderButton.CancelModal
 						onPress={ShareExtension.close}
 						testID='share-extension-close'
 					/>
@@ -168,9 +172,9 @@ class ShareListView extends React.Component {
 				searching
 					? null
 					: (
-						<CustomHeaderButtons>
-							<Item title='search' iconName='magnifier' onPress={this.initSearch} />
-						</CustomHeaderButtons>
+						<HeaderButton.Container>
+							<HeaderButton.Item iconName='search' onPress={this.initSearch} />
+						</HeaderButton.Container>
 					)
 			)
 		});
@@ -195,13 +199,14 @@ class ShareListView extends React.Component {
 			Q.experimentalSortBy('room_updated_at', Q.desc)
 		];
 		if (text) {
+			const likeString = sanitizeLikeString(text);
 			return db.collections
 				.get('subscriptions')
 				.query(
 					...defaultWhereClause,
 					Q.or(
-						Q.where('name', Q.like(`%${ Q.sanitizeLikeString(text) }%`)),
-						Q.where('fname', Q.like(`%${ Q.sanitizeLikeString(text) }%`))
+						Q.where('name', Q.like(`%${ likeString }%`)),
+						Q.where('fname', Q.like(`%${ likeString }%`))
 					)
 				).fetch();
 		}
@@ -456,10 +461,9 @@ class ShareListView extends React.Component {
 	}
 
 	render() {
-		const { theme } = this.props;
 		return (
-			<SafeAreaView theme={theme}>
-				<StatusBar theme={theme} />
+			<SafeAreaView>
+				<StatusBar />
 				{this.renderContent()}
 			</SafeAreaView>
 		);
@@ -469,7 +473,7 @@ class ShareListView extends React.Component {
 const mapStateToProps = (({ share }) => ({
 	userId: share.user && share.user.id,
 	token: share.user && share.user.token,
-	server: share.server
+	server: share.server.server
 }));
 
 export default connect(mapStateToProps)(withTheme(ShareListView));

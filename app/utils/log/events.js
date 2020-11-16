@@ -58,6 +58,7 @@ export default {
 	RL_ADD_SERVER: 'rl_add_server',
 	RL_CHANGE_SERVER: 'rl_change_server',
 	RL_GO_NEW_MSG: 'rl_go_new_msg',
+	RL_GO_E2E_SAVE_PASSWORD: 'rl_go_e2e_save_password',
 	RL_SEARCH: 'rl_search',
 	RL_GO_DIRECTORY: 'rl_go_directory',
 	RL_GO_QUEUE: 'rl_go_queue',
@@ -103,6 +104,7 @@ export default {
 	CREATE_CHANNEL_TOGGLE_TYPE: 'create_channel_toggle_type',
 	CREATE_CHANNEL_TOGGLE_READ_ONLY: 'create_channel_toggle_read_only',
 	CREATE_CHANNEL_TOGGLE_BROADCAST: 'create_channel_toggle_broadcast',
+	CREATE_CHANNEL_TOGGLE_ENCRYPTED: 'create_channel_toggle_encrypted',
 	CREATE_CHANNEL_REMOVE_USER: 'create_channel_remove_user',
 
 	// CREATE DISCUSSION VIEW
@@ -119,6 +121,8 @@ export default {
 	PROFILE_SAVE_AVATAR_F: 'profile_save_avatar_f',
 	PROFILE_SAVE_CHANGES: 'profile_save_changes',
 	PROFILE_SAVE_CHANGES_F: 'profile_save_changes_f',
+	PROFILE_LOGOUT_OTHER_LOCATIONS: 'profile_logout_other_locations',
+	PROFILE_LOGOUT_OTHER_LOCATIONS_F: 'profile_logout_other_locations_f',
 
 	// SETTINGS VIEW
 	SE_CONTACT_US: 'se_contact_us',
@@ -129,14 +133,19 @@ export default {
 	SE_SHARE_THIS_APP: 'se_share_this_app',
 	SE_GO_DEFAULTBROWSER: 'se_go_default_browser',
 	SE_GO_THEME: 'se_go_theme',
-	SE_GO_SCREENLOCKCONFIG: 'se_go_screen_lock_cfg',
 	SE_GO_PROFILE: 'se_go_profile',
+	SE_GO_SECURITYPRIVACY: 'se_go_securityprivacy',
 	SE_READ_LICENSE: 'se_read_license',
 	SE_COPY_APP_VERSION: 'se_copy_app_version',
 	SE_COPY_SERVER_VERSION: 'se_copy_server_version',
-	SE_TOGGLE_CRASH_REPORT: 'se_toggle_crash_report',
 	SE_CLEAR_LOCAL_SERVER_CACHE: 'se_clear_local_server_cache',
 	SE_LOG_OUT: 'se_log_out',
+
+	// SECURITY PRIVACY VIEW
+	SP_GO_E2EENCRYPTIONSECURITY: 'sp_go_e2e_encryption_security',
+	SP_GO_SCREENLOCKCONFIG: 'sp_go_screen_lock_cfg',
+	SP_TOGGLE_CRASH_REPORT: 'sp_toggle_crash_report',
+	SP_TOGGLE_ANALYTICS_EVENTS: 'sp_toggle_analytics_events',
 
 	// LANGUAGE VIEW
 	LANG_SET_LANGUAGE: 'lang_set_language',
@@ -159,6 +168,7 @@ export default {
 
 	// ROOM VIEW
 	ROOM_SEND_MESSAGE: 'room_send_message',
+	ROOM_ENCRYPTED_PRESS: 'room_encrypted_press',
 	ROOM_OPEN_EMOJI: 'room_open_emoji',
 	ROOM_AUDIO_RECORD: 'room_audio_record',
 	ROOM_AUDIO_RECORD_F: 'room_audio_record_f',
@@ -231,6 +241,8 @@ export default {
 	RA_LEAVE_F: 'ra_leave_f',
 	RA_TOGGLE_BLOCK_USER: 'ra_toggle_block_user',
 	RA_TOGGLE_BLOCK_USER_F: 'ra_toggle_block_user_f',
+	RA_TOGGLE_ENCRYPTED: 'ra_toggle_encrypted',
+	RA_TOGGLE_ENCRYPTED_F: 'ra_toggle_encrypted_f',
 
 	// ROOM INFO VIEW
 	RI_GO_RI_EDIT: 'ri_go_ri_edit',
@@ -242,6 +254,7 @@ export default {
 	RI_EDIT_TOGGLE_READ_ONLY: 'ri_edit_toggle_read_only',
 	RI_EDIT_TOGGLE_REACTIONS: 'ri_edit_toggle_reactions',
 	RI_EDIT_TOGGLE_SYSTEM_MSG: 'ri_edit_toggle_system_msg',
+	RI_EDIT_TOGGLE_ENCRYPTED: 'ri_edit_toggle_encrypted',
 	RI_EDIT_SAVE: 'ri_edit_save',
 	RI_EDIT_SAVE_F: 'ri_edit_save_f',
 	RI_EDIT_RESET: 'ri_edit_reset',
@@ -286,5 +299,17 @@ export default {
 	NP_DESKTOPNOTIFICATIONDURATION: 'np_desktopnotificationduration',
 	NP_DESKTOPNOTIFICATIONDURATION_F: 'np_desktopnotificationduration_f',
 	NP_EMAILNOTIFICATIONS: 'np_email_notifications',
-	NP_EMAILNOTIFICATIONS_F: 'np_email_notifications_f'
+	NP_EMAILNOTIFICATIONS_F: 'np_email_notifications_f',
+
+	// E2E SAVE YOUR PASSWORD VIEW
+	E2E_SAVE_PW_SAVED: 'e2e_save_pw_saved',
+	E2E_SAVE_PW_COPY: 'e2e_save_pw_copy',
+	E2E_SAVE_PW_HOW_IT_WORKS: 'e2e_save_pw_how_it_works',
+
+	// E2E ENTER YOUR PASSWORD VIEW
+	E2E_ENTER_PW_SUBMIT: 'e2e_enter_pw_submit',
+
+	// E2E ENCRYPTION SECURITY VIEW
+	E2E_SEC_CHANGE_PASSWORD: 'e2e_sec_change_password',
+	E2E_SEC_RESET_OWN_KEY: 'e2e_sec_reset_own_key'
 };

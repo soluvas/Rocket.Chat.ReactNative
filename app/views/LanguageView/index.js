@@ -4,58 +4,18 @@ import { FlatList } from 'react-native';
 import { connect } from 'react-redux';
 
 import RocketChat from '../../lib/rocketchat';
-import I18n from '../../i18n';
+import I18n, { LANGUAGES } from '../../i18n';
 import { showErrorAlert } from '../../utils/info';
 import log, { logEvent, events } from '../../utils/log';
 import { setUser as setUserAction } from '../../actions/login';
 import StatusBar from '../../containers/StatusBar';
-import { CustomIcon } from '../../lib/Icons';
-import sharedStyles from '../Styles';
-import ListItem from '../../containers/ListItem';
-import Separator from '../../containers/Separator';
+import * as List from '../../containers/List';
 import { themes } from '../../constants/colors';
 import { withTheme } from '../../theme';
 import { appStart as appStartAction, ROOT_LOADING, ROOT_INSIDE } from '../../actions/app';
 import { getUserSelector } from '../../selectors/login';
 import database from '../../lib/database';
 import SafeAreaView from '../../containers/SafeAreaView';
-
-const LANGUAGES = [
-	{
-		label: '简体中文',
-		value: 'zh-CN'
-	}, {
-		label: 'Deutsch',
-		value: 'de'
-	}, {
-		label: 'English',
-		value: 'en'
-	}, {
-		label: 'Español (ES)',
-		value: 'es-ES'
-	}, {
-		label: 'Français',
-		value: 'fr'
-	}, {
-		label: 'Português (BR)',
-		value: 'pt-BR'
-	}, {
-		label: 'Português (PT)',
-		value: 'pt-PT'
-	}, {
-		label: 'Russian',
-		value: 'ru'
-	}, {
-		label: 'Nederlands',
-		value: 'nl'
-	}, {
-		label: 'Italiano',
-		value: 'it'
-	}, {
-		label: '日本語',
-		value: 'ja'
-	}
-];
 
 class LanguageView extends React.Component {
 	static navigationOptions = () => ({
@@ -145,50 +105,39 @@ class LanguageView extends React.Component {
 		}
 	}
 
-	renderSeparator = () => {
-		const { theme } = this.props;
-		return <Separator theme={theme} />;
-	}
-
 	renderIcon = () => {
 		const { theme } = this.props;
-		return <CustomIcon name='check' size={20} style={{ color: themes[theme].tintColor }} />;
+		return <List.Icon name='check' color={themes[theme].tintColor} />;
 	}
 
 	renderItem = ({ item }) => {
 		const { value, label } = item;
 		const { language } = this.state;
-		const { theme } = this.props;
 		const isSelected = language === value;
 
 		return (
-			<ListItem
+			<List.Item
 				title={label}
 				onPress={() => this.submit(value)}
 				testID={`language-view-${ value }`}
 				right={isSelected ? this.renderIcon : null}
-				theme={theme}
+				translateTitle={false}
 			/>
 		);
 	}
 
 	render() {
-		const { theme } = this.props;
 		return (
-			<SafeAreaView testID='language-view' theme={theme}>
-				<StatusBar theme={theme} />
+			<SafeAreaView testID='language-view'>
+				<StatusBar />
 				<FlatList
 					data={LANGUAGES}
 					keyExtractor={item => item.value}
-					contentContainerStyle={[
-						sharedStyles.listContentContainer,
-						{
-							backgroundColor: themes[theme].auxiliaryBackground,
-							borderColor: themes[theme].separatorColor
-						}
-					]}
+					ListHeaderComponent={List.Separator}
+					ListFooterComponent={List.Separator}
+					contentContainerStyle={List.styles.contentContainerStyleFlatList}
 					renderItem={this.renderItem}
-					ItemSeparatorComponent={this.renderSeparator}
+					ItemSeparatorComponent={List.Separator}
 				/>
 			</SafeAreaView>
 		);
